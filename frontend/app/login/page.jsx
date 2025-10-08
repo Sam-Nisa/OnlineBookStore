@@ -32,7 +32,7 @@ export default function Login() {
       if (loggedInUser?.role === "admin") {
         router.push("/admin/dashboard");
       } else if (loggedInUser?.role === "author") {
-        router.push("/author");
+        router.push("/author/dashboard");
       } else {
         router.push("/"); // normal user
       }

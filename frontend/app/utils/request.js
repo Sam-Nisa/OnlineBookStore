@@ -9,7 +9,7 @@ export const request = (url = "", method = "POST", data = {}, customConfig = {},
 
   return axios({
     url: `${config.base_url}${url}`,
-    method,
+    method: method.toUpperCase(), // ensure method is uppercase
     data: method.toUpperCase() === "GET" ? undefined : data,
     params: method.toUpperCase() === "GET" ? data : undefined,
     headers: {
