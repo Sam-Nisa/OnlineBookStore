@@ -20,19 +20,10 @@ export default function AdminLayout({ children }) {
       <aside className="w-64 bg-gray-800 text-white flex flex-col">
         <div className="p-6 text-2xl font-bold">Admin Panel</div>
         <nav className="flex-1 px-4 space-y-2">
-          <Link href="/admin/dashboard" className="block py-2 px-4 rounded hover:bg-gray-700">
+          <Link href="/author/dashboard" className="block py-2 px-4 rounded hover:bg-gray-700">
             Dashboard
           </Link>
-          <Link href="/admin/users" className="block py-2 px-4 rounded hover:bg-gray-700">
-            Users
-          </Link>
-          <Link href="/admin/settings" className="block py-2 px-4 rounded hover:bg-gray-700">
-            Settings
-          </Link>
-          <Link href="/admin/genres" className="block py-2 px-4 rounded hover:bg-gray-700">
-            Genres
-          </Link>
-          <Link href="/admin/books" className="block py-2 px-4 rounded hover:bg-gray-700">
+          <Link href="/author/books" className="block py-2 px-4 rounded hover:bg-gray-700">
             Books
           </Link>
         </nav>

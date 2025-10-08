@@ -17,6 +17,15 @@ use App\Http\Controllers\InventoryLogController;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
+
+// books
+Route::get('books', [BookController::class, 'index']);       // All logged-in users
+Route::get('books/{id}', [BookController::class, 'show']);   // All logged-in users
+
+// genres
+Route::get('genres', [GenreController::class, 'index']);       // All logged-in users
+Route::get('genres/{id}', [GenreController::class, 'show']);   // All logged-in users
+
 // Protected routes (JWT)
 Route::middleware(['jwt.auth'])->group(function () {
 
@@ -33,15 +42,13 @@ Route::middleware(['jwt.auth'])->group(function () {
     Route::put('users/{id}/approve', [UserController::class, 'approveToAuthor']);
 
      // Genres CRUD
-    Route::get('genres', [GenreController::class, 'index']);       // All logged-in users
-    Route::get('genres/{id}', [GenreController::class, 'show']);   // All logged-in users
+
     Route::post('genres', [GenreController::class, 'store']);      // Admin only
     Route::put('genres/{id}', [GenreController::class, 'update']); // Admin only
     Route::delete('genres/{id}', [GenreController::class, 'destroy']); // Admin only
 
     // Books CRUD
-    Route::get('books', [BookController::class, 'index']);       // All logged-in users
-    Route::get('books/{id}', [BookController::class, 'show']);   // All logged-in users
+
     Route::post('books', [BookController::class, 'store']);      // Admin or author
     Route::put('books/{id}', [BookController::class, 'update']); // Admin or book author
     Route::delete('books/{id}', [BookController::class, 'destroy']); // Admin or book author
