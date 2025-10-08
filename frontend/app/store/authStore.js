@@ -1,86 +1,72 @@
-// store/authStore.js
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { request } from "../util/request";
+import { request } from "../utils/request";
 
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
-      user: null,
-      token: null,
-      loading: false,
-      error: null,
+export const useAuthStore = create((set, get) => ({
+  user: null,
+  token: typeof window !== "undefined" ? sessionStorage.getItem("token") : null, // use sessionStorage
+  loading: false,
+  error: null,
 
-      login: async (email, password) => {
-        set({ loading: true, error: null });
-        try {
-          // This calls the updated request utility
-          const res = await request("/login", "POST", { email, password }); 
-          const { user, token } = res || {};
-          if (!user || !token) {
-            // Check for malformed success response
-            throw new Error("Invalid login response. Please try again.");
-          }
-          set({ user, token });
-          return { user, token };
-        } catch (err) {
-          let errorMsg = "Login failed";
-
-          // --- Improved Error Handling for 500 Status ---
-          if (err.response?.status === 500) {
-            errorMsg = "Server error. Please try again or contact support.";
-          } else {
-            // Fallback for 4xx errors, network errors, etc.
-            errorMsg = err?.response?.data?.error || err.message || errorMsg;
-          }
-          // ---------------------------------------------
-          
-          set({ error: errorMsg });
-          throw new Error(errorMsg);
-        } finally {
-          set({ loading: false });
-        }
-      },
-
-      logout: async () => {
-        try {
-          // Note: The /logout endpoint doesn't strictly need the token, 
-          // but the interceptor will add it anyway.
-          await request("/logout", "POST"); 
-        } catch (err) {
-          console.warn("Logout request failed:", err);
-        } finally {
-          set({ user: null, token: null });
-        }
-      },
-
-      getToken: () => get().token,
-
-      fetchUser: async () => {
-        try {
-          const res = await request("/me", "GET");
-          set({ user: res.user });
-        } catch (err) {
-          console.error("Failed to fetch user:", err);
-          get().logout();
-        }
-      },
-
-      refreshToken: async () => {
-        try {
-          const res = await request("/refresh", "POST");
-          set({ token: res.token });
-          return res.token;
-        } catch (err) {
-          console.error("Token refresh failed:", err);
-          get().logout();
-        }
-      },
-    }),
-    {
-      name: "auth-storage",
-      storage: createJSONStorage(() => sessionStorage), // or localStorage
-      partialize: (state) => ({ token: state.token, user: state.user }),
+  login: async (email, password) => {
+    set({ loading: true, error: null });
+    try {
+      const data = await request("/api/login", "POST", { email, password });
+      set({ user: data.user, token: data.token });
+      if (typeof window !== "undefined") sessionStorage.setItem("token", data.token); // sessionStorage
+      return data;
+    } catch (err) {
+      set({ error: err.response?.data?.error || "Login failed" });
+      throw err;
+    } finally {
+      set({ loading: false });
     }
-  )
-);
+  },
+
+  logout: async () => {
+    const token = get().token;
+    if (!token) return;
+    set({ loading: true, error: null });
+    try {
+      await request("/api/logout", "POST", {}, {}, token);
+      set({ user: null, token: null });
+      if (typeof window !== "undefined") sessionStorage.removeItem("token"); // sessionStorage
+    } catch (err) {
+      set({ error: "Logout failed" });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchProfile: async () => {
+    const token = get().token;
+    if (!token) return;
+    set({ loading: true, error: null });
+    try {
+      const data = await request("/api/profile", "GET", {}, {}, token);
+      set({ user: data });
+    } catch (err) {
+      set({ error: "Failed to fetch profile" });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  register: async (name, email, password, password_confirmation) => {
+    set({ loading: true, error: null });
+    try {
+      const data = await request("/api/register", "POST", {
+        name,
+        email,
+        password,
+        password_confirmation,
+      });
+      set({ user: data.user, token: data.token });
+      if (typeof window !== "undefined") sessionStorage.setItem("token", data.token); // sessionStorage
+    } catch (err) {
+      set({ error: err.response?.data?.error || "Registration failed" });
+      throw err;
+    } finally {
+      set({ loading: false });
+    }
+  },
+}));

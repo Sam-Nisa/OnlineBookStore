@@ -13,9 +13,9 @@ use App\Http\Controllers\CouponController;
 use App\Http\Controllers\OrderCouponController;
 use App\Http\Controllers\InventoryLogController;
 
-// Public routes
-Route::post('register', [AuthController::class, 'register']);
-Route::post('login', [AuthController::class, 'login']);
+// Public API routes
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
 
 // Protected routes (JWT)
 Route::middleware(['jwt.auth'])->group(function () {
