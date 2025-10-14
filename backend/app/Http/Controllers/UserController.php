@@ -9,7 +9,7 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserController extends Controller
 {
-    // 🧩 List all users (admin only)
+    // List all users (admin only)
     public function index()
     {
         $currentUser = JWTAuth::parseToken()->authenticate();
@@ -19,10 +19,10 @@ class UserController extends Controller
         }
 
         $users = User::all();
-        return response()->json($users);
+        return response()->json($users, 200);
     }
 
-    // 👤 Get single user by ID
+    // Get single user by ID
     public function show($id)
     {
         $currentUser = JWTAuth::parseToken()->authenticate();
@@ -37,10 +37,10 @@ class UserController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        return response()->json($user);
+        return response()->json($user, 200);
     }
 
-    // ✏️ Update user info
+    // Update user info
     public function update(Request $request, $id)
     {
         $currentUser = JWTAuth::parseToken()->authenticate();
@@ -50,12 +50,10 @@ class UserController extends Controller
             return response()->json(['error' => 'User not found'], 404);
         }
 
-        // Only admin can update any user; regular users can update only themselves
         if ($currentUser->role !== 'admin' && $currentUser->id !== $user->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        // ✅ Validation
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $id,
@@ -64,18 +62,10 @@ class UserController extends Controller
             'role' => 'sometimes|in:user,admin,author'
         ]);
 
-        // ✅ Update basic fields
-        if ($request->filled('name')) {
-            $user->name = $request->name;
-        }
-        if ($request->filled('email')) {
-            $user->email = $request->email;
-        }
-        if ($request->filled('password')) {
-            $user->password_hash = Hash::make($request->password);
-        }
+        if ($request->filled('name')) $user->name = $request->name;
+        if ($request->filled('email')) $user->email = $request->email;
+        if ($request->filled('password')) $user->password = Hash::make($request->password);
 
-        // ✅ Handle avatar upload
         // Handle avatar upload or URL
         if ($request->hasFile('avatar')) {
             $file = $request->file('avatar');
@@ -83,12 +73,10 @@ class UserController extends Controller
             $path = $file->storeAs('avatars', $filename, 'public');
             $user->avatar = '/storage/' . $path;
         } elseif ($request->filled('avatar')) {
-            // If avatar is a URL string
             $user->avatar = $request->avatar;
         }
 
-
-        // ✅ Only admin can change role
+        // Only admin can change role
         if ($request->filled('role')) {
             if ($currentUser->role === 'admin') {
                 $user->role = $request->role;
@@ -102,10 +90,10 @@ class UserController extends Controller
         return response()->json([
             'message' => 'User updated successfully',
             'user' => $user
-        ]);
+        ], 200);
     }
 
-    // ❌ Delete user (admin only)
+    // Delete user (admin only)
     public function destroy($id)
     {
         $currentUser = JWTAuth::parseToken()->authenticate();
@@ -121,10 +109,10 @@ class UserController extends Controller
 
         $user->delete();
 
-        return response()->json(['message' => 'User deleted successfully']);
+        return response()->json(['message' => 'User deleted successfully'], 200);
     }
 
-    // ✅ Admin approves user to author
+    // Approve user to author (admin only)
     public function approveToAuthor($id)
     {
         $currentUser = JWTAuth::parseToken()->authenticate();
@@ -144,6 +132,6 @@ class UserController extends Controller
         return response()->json([
             'message' => 'User approved as author successfully',
             'user' => $user
-        ]);
+        ], 200);
     }
 }

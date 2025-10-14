@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id(); // primary key
             $table->string('name');
             $table->foreignId('parent_id')->nullable()->constrained('genres')->nullOnDelete();
+            $table->string('image')->nullable(); // <-- add this line for image path
             $table->timestamps();
         });
     }

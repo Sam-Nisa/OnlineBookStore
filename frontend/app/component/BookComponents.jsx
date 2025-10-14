@@ -25,10 +25,8 @@ export default function BooksPage() {
     fetchGenres();
   }, []);
 
-  // Add new book
   const handleAddBook = async () => {
     if (!newBook.title.trim()) return;
-
     await createBook(newBook);
     setNewBook({
       title: "",
@@ -41,28 +39,20 @@ export default function BooksPage() {
     });
   };
 
-  // Edit book
   const handleEdit = (book) => {
     setEditingBookId(book.id);
     setEditingBook({ ...book });
   };
 
-  // Update book
   const handleUpdate = async (id) => {
     await updateBook(id, editingBook);
     setEditingBookId(null);
     setEditingBook({});
   };
 
-  // Delete book
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this book?")) return;
     await deleteBook(id);
-  };
-
-  // Helper: get genre name by ID
-  const getGenreName = (genre_id) => {
-    return genres.find((g) => g.id === Number(genre_id))?.name || "N/A";
   };
 
   return (
@@ -173,9 +163,7 @@ export default function BooksPage() {
                         onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })}
                         className="border p-1 rounded w-full"
                       />
-                    ) : (
-                      book.title
-                    )}
+                    ) : book.title}
                   </td>
 
                   {/* Genre */}
@@ -191,9 +179,7 @@ export default function BooksPage() {
                           <option key={genre.id} value={genre.id}>{genre.name}</option>
                         ))}
                       </select>
-                    ) : (
-                      getGenreName(book.genre_id)
-                    )}
+                    ) : genres.find((g) => g.id === book.genre_id)?.name || "N/A"}
                   </td>
 
                   {/* Price */}
@@ -205,9 +191,7 @@ export default function BooksPage() {
                         onChange={(e) => setEditingBook({ ...editingBook, price: e.target.value })}
                         className="border p-1 rounded w-full"
                       />
-                    ) : (
-                      book.price
-                    )}
+                    ) : book.price}
                   </td>
 
                   {/* Stock */}
@@ -219,9 +203,7 @@ export default function BooksPage() {
                         onChange={(e) => setEditingBook({ ...editingBook, stock: e.target.value })}
                         className="border p-1 rounded w-full"
                       />
-                    ) : (
-                      book.stock
-                    )}
+                    ) : book.stock}
                   </td>
 
                   {/* Status */}
@@ -236,39 +218,45 @@ export default function BooksPage() {
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
                       </select>
-                    ) : (
-                      book.status
-                    )}
+                    ) : book.status}
                   </td>
 
-                  {/* Cover */}
-                  <td className="border p-2">
-                    {editingBookId === book.id ? (
-                      <>
-                        {editingBook.cover_image && (
-                          <img
-                            src={editingBook.cover_image instanceof File ? URL.createObjectURL(editingBook.cover_image) : editingBook.cover_image}
-                            alt={editingBook.title}
-                            className="w-16 h-16 object-cover mb-1"
-                          />
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setEditingBook({ ...editingBook, cover_image: e.target.files[0] })}
-                          className="border p-1 rounded w-full"
-                        />
-                      </>
-                    ) : (
-                      book.cover_image && (
-                        <img
-                          src={book.cover_image}
-                          alt={book.title}
-                          className="w-16 h-16 object-cover"
-                        />
-                      )
-                    )}
-                  </td>
+                  {/* Cover image */}
+                 {/* Cover image */}
+<td className="border p-2">
+  {editingBookId === book.id ? (
+    <>
+      {editingBook.cover_image && (
+        <img
+          src={
+            editingBook.cover_image instanceof File
+              ? URL.createObjectURL(editingBook.cover_image)
+              : editingBook.cover_image
+          }
+          alt={editingBook.title}
+          className="w-16 h-16 object-cover mb-1"
+        />
+      )}
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) =>
+          setEditingBook({ ...editingBook, cover_image: e.target.files[0] })
+        }
+        className="border p-1 rounded w-full"
+      />
+    </>
+  ) : (
+    book.cover_image && (
+      <img
+        src={book.cover_image}
+        alt={book.title}
+        className="w-16 h-16 object-cover"
+      />
+    )
+  )}
+</td>
+
 
                   {/* Description */}
                   <td className="border p-2">
@@ -278,9 +266,7 @@ export default function BooksPage() {
                         onChange={(e) => setEditingBook({ ...editingBook, description: e.target.value })}
                         className="border p-1 rounded w-full"
                       />
-                    ) : (
-                      book.description
-                    )}
+                    ) : book.description}
                   </td>
 
                   {/* Actions */}

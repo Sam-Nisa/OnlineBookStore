@@ -12,6 +12,7 @@ use App\Http\Controllers\OrderItemController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\OrderCouponController;
 use App\Http\Controllers\InventoryLogController;
+use App\Http\Controllers\CartController;
 
 // Public API routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -89,4 +90,16 @@ Route::middleware(['jwt.auth'])->group(function () {
     Route::post('inventory-logs', [InventoryLogController::class, 'store']);
     Route::get('inventory-logs/{id}', [InventoryLogController::class, 'show']);
     Route::delete('inventory-logs/{id}', [InventoryLogController::class, 'destroy']);
+
+
+ 
+    // Cart and cartItem 
+    Route::middleware('auth:api')->group(function () {
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/add', [CartController::class, 'addToCart']);
+    Route::put('/cart/item/{id}', [CartController::class, 'updateQuantity']);
+    Route::delete('/cart/item/{id}', [CartController::class, 'removeItem']);
+    Route::delete('/cart/clear', [CartController::class, 'clearCart']);
+});
+
 });
