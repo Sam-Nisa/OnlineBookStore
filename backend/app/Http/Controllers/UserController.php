@@ -5,133 +5,235 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
-    // List all users (admin only)
+    /**
+     * List all users.
+     */
     public function index()
     {
-        $currentUser = JWTAuth::parseToken()->authenticate();
+        $users = User::select('id', 'name', 'email', 'role', 'avatar', 'created_at')->get();
 
-        if ($currentUser->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $users = User::all();
-        return response()->json($users, 200);
-    }
-
-    // Get single user by ID
-    public function show($id)
-    {
-        $currentUser = JWTAuth::parseToken()->authenticate();
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
-        }
-
-        // Only admin or the user themselves can view
-        if ($currentUser->role !== 'admin' && $currentUser->id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        return response()->json($user, 200);
-    }
-
-    // Update user info
-    public function update(Request $request, $id)
-    {
-        $currentUser = JWTAuth::parseToken()->authenticate();
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
-        }
-
-        if ($currentUser->role !== 'admin' && $currentUser->id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $id,
-            'password' => 'sometimes|string|min:6',
-            'avatar' => 'sometimes|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'role' => 'sometimes|in:user,admin,author'
-        ]);
-
-        if ($request->filled('name')) $user->name = $request->name;
-        if ($request->filled('email')) $user->email = $request->email;
-        if ($request->filled('password')) $user->password = Hash::make($request->password);
-
-        // Handle avatar upload or URL
-        if ($request->hasFile('avatar')) {
-            $file = $request->file('avatar');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('avatars', $filename, 'public');
-            $user->avatar = '/storage/' . $path;
-        } elseif ($request->filled('avatar')) {
-            $user->avatar = $request->avatar;
-        }
-
-        // Only admin can change role
-        if ($request->filled('role')) {
-            if ($currentUser->role === 'admin') {
-                $user->role = $request->role;
-            } else {
-                return response()->json(['error' => 'Only admin can change role'], 403);
-            }
-        }
-
-        $user->save();
+        // Fix avatar URLs
+        $users->map(function ($user) {
+            $user->avatar = $user->avatar
+                ? (filter_var($user->avatar, FILTER_VALIDATE_URL)
+                    ? $user->avatar
+                    : asset('storage/' . $user->avatar))
+                : null;
+            return $user;
+        });
 
         return response()->json([
-            'message' => 'User updated successfully',
-            'user' => $user
-        ], 200);
+            'success' => true,
+            'data' => $users
+        ]);
     }
 
-    // Delete user (admin only)
-    public function destroy($id)
+    /**
+     * Show single user by ID.
+     */
+    public function show($id)
     {
-        $currentUser = JWTAuth::parseToken()->authenticate();
+        $user = User::select('id', 'name', 'email', 'role', 'avatar', 'created_at')->find($id);
+    
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+    
+        // Prepare full avatar URL
+        $avatarUrl = $user->avatar
+            ? (filter_var($user->avatar, FILTER_VALIDATE_URL)
+                ? $user->avatar
+                : asset('storage/' . $user->avatar))
+            : null;
+    
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'avatar' => $user->avatar,      // original value
+                'avatar_url' => $avatarUrl,     // full URL for frontend
+                'created_at' => $user->created_at,
+            ]
+        ]);
+    }
+    
 
-        if ($currentUser->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
+    /**
+     * Register new user (default role: user).
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
+            'avatar'   => 'nullable', // can be URL or file
+        ]);
+
+        // Handle avatar upload or URL
+        $avatarPath = null;
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        } elseif ($request->has('avatar') && filter_var($request->avatar, FILTER_VALIDATE_URL)) {
+            $avatarPath = $request->avatar; // keep URL
         }
 
+        $user = User::create([
+            'name'          => $validated['name'],
+            'email'         => $validated['email'],
+            'password_hash' => Hash::make($validated['password']),
+            'role'          => 'user', // default role
+            'avatar'        => $avatarPath,
+        ]);
+
+        $token = JWTAuth::fromUser($user);
+
+        // Return correct avatar URL
+        $user->avatar = $user->avatar
+            ? (filter_var($user->avatar, FILTER_VALIDATE_URL)
+                ? $user->avatar
+                : asset('storage/' . $user->avatar))
+            : null;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User registered successfully',
+            'user' => $user,
+            'token' => $token,
+        ], 201);
+    }
+
+    /**
+     * Update user information (supports avatar upload or URL).
+     */
+    public function update(Request $request, $id)
+    {
         $user = User::find($id);
+    
         if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+    
+        // Validation rules
+        $validated = $request->validate([
+            'name'     => 'sometimes|string|max:255',
+            'email'    => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
+            'password' => 'sometimes|string|min:6',
+            'avatar'   => 'sometimes', // accept file or URL
+            'role'     => ['sometimes', Rule::in(['user', 'admin', 'author'])],
+        ]);
+    
+        // Hash password if provided
+        if (isset($validated['password'])) {
+            $validated['password_hash'] = Hash::make($validated['password']);
+            unset($validated['password']);
+        }
+    
+        // Handle avatar
+        if ($request->hasFile('avatar')) {
+            // Delete old avatar if it's not a URL
+            if ($user->avatar && !filter_var($user->avatar, FILTER_VALIDATE_URL) && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+    
+            $avatarPath = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar'] = $avatarPath;
+    
+        } elseif ($request->has('avatar') && filter_var($request->avatar, FILTER_VALIDATE_URL)) {
+            // If avatar is a URL, just store the URL
+            $validated['avatar'] = $request->avatar;
+        }
+    
+        // Update the user
+        $user->update($validated);
+    
+        // Prepare full avatar URL
+        $avatarUrl = $user->avatar
+            ? (filter_var($user->avatar, FILTER_VALIDATE_URL)
+                ? $user->avatar
+                : asset('storage/' . $user->avatar))
+            : null;
+    
+        return response()->json([
+            'success' => true,
+            'message' => 'User updated successfully',
+            'data' => $user,
+            'avatar_url' => $avatarUrl // extra field for frontend
+        ]);
+    }
+    
+    
+
+    /**
+     * Delete a user.
+     */
+    public function destroy($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        // Delete local avatar file if exists
+        if ($user->avatar && !filter_var($user->avatar, FILTER_VALIDATE_URL) && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
         }
 
         $user->delete();
 
-        return response()->json(['message' => 'User deleted successfully'], 200);
+        return response()->json([
+            'success' => true,
+            'message' => 'User deleted successfully'
+        ]);
     }
 
-    // Approve user to author (admin only)
+    /**
+     * Approve user to author role.
+     */
     public function approveToAuthor($id)
     {
-        $currentUser = JWTAuth::parseToken()->authenticate();
+        $user = User::find($id);
 
-        if ($currentUser->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
         }
 
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
+        if ($user->role === 'author') {
+            return response()->json([
+                'success' => false,
+                'message' => 'User is already an author'
+            ], 400);
         }
 
         $user->role = 'author';
         $user->save();
 
         return response()->json([
+            'success' => true,
             'message' => 'User approved as author successfully',
-            'user' => $user
-        ], 200);
+            'data' => $user
+        ]);
     }
 }

@@ -17,20 +17,19 @@ export const useUserStore = create((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const data = await request("/api/users", "GET", {}, {}, token);
-      set({ users: data });
-      return data;
+      const response = await request("/api/users", "GET", {}, {}, token);
+      const usersData = response.data?.data || []; // extract data from backend
+      set({ users: usersData });
+      return usersData;
     } catch (err) {
       console.error("Failed to fetch users:", err);
-      set({ error: err.response?.data?.error || "Failed to fetch users" });
+      set({ error: err.response?.data?.error || err.message || "Failed to fetch users" });
       return [];
     } finally {
       set({ loading: false });
     }
   },
 
-  // Fetch single user by ID
-// Fetch single user by ID
 fetchUserById: async (id) => {
   const token = useAuthStore.getState().token;
   if (!token) {
@@ -40,8 +39,12 @@ fetchUserById: async (id) => {
 
   set({ loading: true, error: null });
   try {
-    const data = await request(`/api/users/${id}`, "GET", {}, {}, token);
-    return data || null;
+    const response = await request(`/api/users/${id}`, "GET", {}, {}, token);
+    // API returns { success: true, data: {...} }
+    if (response && response.success) {
+      return response.data; // return only the user object
+    }
+    return null;
   } catch (err) {
     console.error("Failed to fetch user:", err);
     set({ error: err.response?.data?.error || "Failed to fetch user" });
@@ -51,28 +54,41 @@ fetchUserById: async (id) => {
   }
 },
 
+  
 
+updateUser: async (id, payload) => {
+  const token = useAuthStore.getState().token;
+  if (!token) return null;
 
-  // Update user by ID
-  updateUser: async (id, payload) => {
-    const token = useAuthStore.getState().token;
-    if (!token) return null;
+  set({ loading: true, error: null });
 
-    set({ loading: true, error: null });
-    try {
-      const data = await request(`/api/users/${id}`, "PUT", payload, {}, token);
-      set((state) => ({
-        users: state.users.map((u) => (u.id === id ? data : u)),
-      }));
-      return data;
-    } catch (err) {
-      console.error("Failed to update user:", err);
-      set({ error: err.response?.data?.error || "Failed to update user" });
-      return null;
-    } finally {
-      set({ loading: false });
+  try {
+    let headers = {};
+    let body = payload;
+
+    if (!(payload instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(payload);
+    } else {
+      // For FormData with PUT, some servers need _method=PUT
+      payload.append("_method", "PUT");
     }
-  },
+
+    const data = await request(`/api/users/${id}`, "POST", body, headers, token);
+
+    set((state) => ({
+      users: state.users.map((u) => (u.id === id ? data.data || data : u)),
+    }));
+
+    return data.data || data;
+  } catch (err) {
+    console.error("Failed to update user:", err);
+    set({ error: err.response?.data?.error || "Failed to update user" });
+    return null;
+  }
+},
+
+
 
   // Delete user by ID
   deleteUser: async (id) => {
@@ -102,11 +118,12 @@ fetchUserById: async (id) => {
 
     set({ loading: true, error: null });
     try {
-      const data = await request(`/api/users/${id}/approve`, "PUT", {}, {}, token);
+      const response = await request(`/api/users/${id}/approve`, "PUT", {}, {}, token);
+      const approvedUser = response.data?.data || response;
       set((state) => ({
-        users: state.users.map((u) => (u.id === id ? data : u)),
+        users: state.users.map((u) => (u.id === id ? approvedUser : u)),
       }));
-      return data;
+      return approvedUser;
     } catch (err) {
       console.error("Failed to approve user:", err);
       set({ error: err.response?.data?.error || "Failed to approve user" });
