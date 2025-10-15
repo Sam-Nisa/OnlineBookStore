@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { useBookStore } from "../store/useBookStore";
-import { useWishlistStore } from "../store/useWishlistStore";
-import { useAuthStore } from "../store/authStore";
-import BookCard from "../component/BookCard";
+import { useBookStore } from "../../../store/useBookStore";
+import { useWishlistStore } from "../../../store/useWishlistStore";
+import { useAuthStore } from "../../../store/authStore";
+import BookCard from "../../../component/BookCard";
 
 export default function WishlistPage() {
   const { books, loading: booksLoading, error: booksError, fetchBooks } = useBookStore();

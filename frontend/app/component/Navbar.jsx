@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart, User, Search, Menu, BookOpen } from "lucide-react";
+import { ShoppingCart, Search, Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useAuthStore } from "../store/authStore";
 
 export default function Header() {
   const [cartCount] = useState(3);
-  const { user, fetchProfile, logout } = useAuthStore();
+  const { user, fetchProfile } = useAuthStore();
 
   useEffect(() => {
     if (!user) {
@@ -16,6 +16,7 @@ export default function Header() {
     }
   }, [user, fetchProfile]);
 
+  
   return (
     <header className="sticky top-0 z-50 w-full px-32 bg-white/90 backdrop-blur-md shadow-md border-b border-gray-200">
       <div className="mx-auto px-8">
@@ -67,27 +68,31 @@ export default function Header() {
               <Search className="h-5 w-5" />
             </button>
 
-            {/* User Info / Login */}
+            {/* User Info */}
             {user ? (
               <div className="flex items-center gap-3">
+                {/* User Name */}
                 <span className="text-gray-700 font-medium hidden md:block">
-                  {user.name}
+                  {user.name ?? "User"}
                 </span>
-                <div className="w-10 h-10 relative rounded-full overflow-hidden">
-                <Image
-  src={user.avatar || "/default-avatar.png"}
-  alt="User Avatar"
-  fill
-  className="object-cover"
-/>
 
-                </div>
-                <button
-                  onClick={logout}
-                  className="text-red-600 font-medium hover:underline hidden md:block"
-                >
-                  Logout
-                </button>
+                {/* Profile Image / Initial */}
+                <Link href={`/profile/${user.id}/myprofile`}>
+                  {user.avatar && user.avatar.trim() !== "" ? (
+                    <div className="w-10 h-10 relative rounded-full overflow-hidden border border-gray-300 hover:ring-2 hover:ring-yellow-500 transition-all duration-200">
+                      <Image
+                        src={user.avatar_url}
+                        alt={user.name ?? "User"}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 flex items-center justify-center bg-yellow-600 text-white font-semibold rounded-full uppercase hover:ring-2 hover:ring-yellow-500 transition-all duration-200">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "?"}
+                    </div>
+                  )}
+                </Link>
               </div>
             ) : (
               <Link

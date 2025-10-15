@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { request } from "../utils/request";
+import { useRouter } from "next/navigation";
 
 export const useAuthStore = create((set, get) => ({
   user: null,
-  token: typeof window !== "undefined" ? sessionStorage.getItem("token") : null, // use sessionStorage
+  token: typeof window !== "undefined" ? sessionStorage.getItem("token") : null, // sessionStorage
   loading: false,
   error: null,
 
@@ -12,7 +13,7 @@ export const useAuthStore = create((set, get) => ({
     try {
       const data = await request("/api/login", "POST", { email, password });
       set({ user: data.user, token: data.token });
-      if (typeof window !== "undefined") sessionStorage.setItem("token", data.token); // sessionStorage
+      if (typeof window !== "undefined") sessionStorage.setItem("token", data.token);
       return data;
     } catch (err) {
       set({ error: err.response?.data?.error || "Login failed" });
@@ -22,14 +23,22 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  logout: async () => {
+  logout: async (redirect = true) => {
     const token = get().token;
     if (!token) return;
+
     set({ loading: true, error: null });
     try {
       await request("/api/logout", "POST", {}, {}, token);
+
+      // Clear auth state
       set({ user: null, token: null });
-      if (typeof window !== "undefined") sessionStorage.removeItem("token"); // sessionStorage
+      if (typeof window !== "undefined") sessionStorage.removeItem("token");
+
+      // Redirect to login page if requested
+      if (redirect && typeof window !== "undefined") {
+        window.location.href = "/login"; // Using window.location to ensure full page reset
+      }
     } catch (err) {
       set({ error: "Logout failed" });
     } finally {
@@ -42,10 +51,10 @@ export const useAuthStore = create((set, get) => ({
     if (!token) return;
     set({ loading: true, error: null });
     try {
-      const data = await request("/api/profile", "GET", {}, {}, token);
-      set({ user: data });
+      const response = await request("/api/profile", "GET", {}, {}, token);
+      set({ user: response.data }); // store only the 'data' object
     } catch (err) {
-      set({ error: "Failed to fetch profile" });
+      set({ error: err?.message || "Failed to fetch profile" });
     } finally {
       set({ loading: false });
     }
@@ -61,7 +70,8 @@ export const useAuthStore = create((set, get) => ({
         password_confirmation,
       });
       set({ user: data.user, token: data.token });
-      if (typeof window !== "undefined") sessionStorage.setItem("token", data.token); // sessionStorage
+      if (typeof window !== "undefined") sessionStorage.setItem("token", data.token);
+      return data;
     } catch (err) {
       set({ error: err.response?.data?.error || "Registration failed" });
       throw err;

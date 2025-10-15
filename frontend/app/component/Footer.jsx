@@ -40,7 +40,7 @@ const Footer = () => {
               
               <li className="flex items-center gap-2 hover:text-yellow-300 transition">
                 <Info size={18} />
-                <a href="/AboutUs">About Us</a>
+                <a href="/about-us">About Us</a>
               </li>
           
               <li className="flex items-center gap-2 hover:text-yellow-300 transition">

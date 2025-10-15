@@ -7,97 +7,133 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // Register new user
+    /**
+     * Register a new user (default role = user).
+     */
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+        $validated = $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
-            'role' => 'sometimes|in:user,admin,author',
-            'avatar' => 'sometimes|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'avatar'   => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // image validation
         ]);
-
+    
+        $avatarPath = null;
         if ($request->hasFile('avatar')) {
-            $file = $request->file('avatar');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('avatars', $filename, 'public');
-            $avatarPath = '/storage/' . $path;
-        } else {
-            $avatarPath = 'https://example.com/default-avatar.png';
+            $avatarPath = $request->file('avatar')->store('avatars', 'public'); 
+            // stored in storage/app/public/avatars
         }
-
+    
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password_hash' => Hash::make($request->password),
-            'role' => $request->role ?? 'user',
-            'avatar' => $avatarPath,
+            'name'          => $validated['name'],
+            'email'         => $validated['email'],
+            'password_hash' => Hash::make($validated['password']),
+            'role'          => 'user', // default role
+            'avatar'        => $avatarPath, // save path to DB
         ]);
-
+    
         $token = JWTAuth::fromUser($user);
-
+    
         return response()->json([
-            'user' => $user,
-            'token' => $token
+            'success' => true,
+            'message' => 'User registered successfully',
+            'user'    => $user,
+            'token'   => $token,
         ], 201);
     }
+    
 
-    // Login
+    /**
+     * Login user and return a JWT token.
+     */
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string'
+        $credentials = $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $credentials['email'])->first();
 
-        if (!$user || !Hash::check($request->password, $user->password_hash)) {
-            return response()->json(['error' => 'Invalid credentials'], 401);
+        if (!$user || !Hash::check($credentials['password'], $user->password_hash)) {
+            return response()->json(['success' => false, 'message' => 'Invalid credentials'], 401);
         }
 
         $token = JWTAuth::fromUser($user);
 
         return response()->json([
-            'user' => $user,
-            'token' => $token
+            'success' => true,
+            'message' => 'Login successful',
+            'user'    => $user,
+            'token'   => $token,
         ]);
     }
 
-    // Profile
+    /**
+     * Get the authenticated user's profile.
+     */
     public function profile()
     {
         try {
-            $user = JWTAuth::parseToken()->authenticate();
-            return response()->json($user);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-    }
-
-    // Logout
-    public function logout()
-    {
-        try {
-            JWTAuth::invalidate(JWTAuth::getToken());
-            return response()->json(['message' => 'Successfully logged out']);
+            $user = Auth::user();
+    
+            // Prepare full avatar URL
+            $avatarUrl = $user->avatar
+                ? (filter_var($user->avatar, FILTER_VALIDATE_URL)
+                    ? $user->avatar
+                    : asset('storage/' . $user->avatar))
+                : null;
+    
+            // Add avatar_url to user object
+            $user->avatar_url = $avatarUrl;
+    
+            return response()->json([
+                'success' => true,
+                'data' => $user,
+            ]);
         } catch (JWTException $e) {
-            return response()->json(['error' => 'Failed to logout'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Token error'
+            ], 401);
         }
     }
+    
 
-    // Refresh token
+    /**
+     * Refresh JWT token.
+     */
     public function refresh()
     {
         try {
             $newToken = JWTAuth::refresh(JWTAuth::getToken());
-            return response()->json(['token' => $newToken]);
+            return response()->json([
+                'success' => true,
+                'token' => $newToken,
+            ]);
         } catch (JWTException $e) {
-            return response()->json(['error' => 'Failed to refresh token'], 500);
+            return response()->json(['success' => false, 'message' => 'Token refresh failed'], 401);
+        }
+    }
+
+    /**
+     * Logout user (invalidate token).
+     */
+    public function logout()
+    {
+        try {
+            JWTAuth::invalidate(JWTAuth::getToken());
+            return response()->json([
+                'success' => true,
+                'message' => 'Logged out successfully',
+            ]);
+        } catch (JWTException $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to logout'], 500);
         }
     }
 }

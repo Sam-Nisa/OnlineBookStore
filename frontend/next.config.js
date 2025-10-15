@@ -1,11 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['*'], // ⚠️ allow all external domains (Note: only for dev or trusted sources)
     remotePatterns: [
       {
+        protocol: 'http',
+        hostname: '**',
+        port: '**',
+        pathname: '**',
+      },
+      {
         protocol: 'https',
-        hostname: '**', // matches all hostnames
+        hostname: '**',
+        port: '**',
+        pathname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8000',
+        pathname: '/storage/**',
       },
     ],
   },
